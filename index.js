@@ -16,6 +16,7 @@
     button.classList.add("btn-icon");
 
     button.id = ROTATE_BUTTON_ID;
+    button.title = "Rotate";
     button.innerHTML = `
       <span
         class="tgico button-icon" 
@@ -36,110 +37,80 @@
     button.addEventListener("click", (event) => {
       event.stopPropagation();
 
-      const image = document.querySelector(".media-viewer-aspecter img");
-      const video = document.querySelector(".ckin__video");
+      const aspecter = document.querySelector(".media-viewer-aspecter");
+      if (!aspecter) return;
 
-      const mediaElement = image || video;
-
-      if (!mediaElement) return;
+      aspecter.style.setProperty("overflow", "visible", "important");
 
       const mover = document.querySelector(".media-viewer-mover");
+      if (mover) mover.style.setProperty("overflow", "visible", "important");
 
-      const videoThumbnail = document.querySelector(
-        ".media-viewer-aspecter .canvas-thumbnail",
-      );
+      const visualElements = aspecter.querySelectorAll("img, video, canvas");
+      if (visualElements.length === 0) return;
 
-      let currentRotation = parseInt(mediaElement.dataset.rotation) || 0;
-
+      // Обновляем угол
+      let currentRotation = parseInt(aspecter.dataset.rotation) || 0;
       currentRotation += 90;
+      aspecter.dataset.rotation = currentRotation;
 
-      let originalWidth = mediaElement.dataset.originalWidth;
-      let originalHeight = mediaElement.dataset.originalHeight;
+      let scale = 1;
 
-      if (!originalWidth || !originalHeight) {
-        originalWidth = mover.style.width.replace("px", "");
-        originalHeight = mover.style.height.replace("px", "");
+      if (currentRotation % 180 !== 0) {
+        let baseW = aspecter.offsetWidth;
+        let baseH = aspecter.offsetHeight;
 
-        mediaElement.dataset.originalWidth = originalWidth;
-        mediaElement.dataset.originalHeight = originalHeight;
+        let rotatedW = baseH;
+        let rotatedH = baseW;
 
-        mediaElement.style.minWidth = originalWidth + "px";
-        mediaElement.style.minHeight = originalHeight + "px";
+        let maxW = window.innerWidth * 0.9;
+        let maxH = window.innerHeight * 0.73;
+
+        if (rotatedW > maxW || rotatedH > maxH) {
+          scale = Math.min(maxW / rotatedW, maxH / rotatedH);
+        }
       }
 
-      let newWidth, newHeight;
-
-      switch (currentRotation % 360) {
-        case 90:
-        case 270:
-          newWidth = originalHeight;
-          newHeight = originalWidth;
-          break;
-        default:
-          newWidth = originalWidth;
-          newHeight = originalHeight;
-          break;
-      }
-
-      mediaElement.dataset.rotation = currentRotation;
-      mediaElement.style.transform = `rotate(${currentRotation}deg)`;
-
-      if (videoThumbnail) {
-        videoThumbnail.dataset.rotation = currentRotation;
-        videoThumbnail.style.transform = `rotate(${currentRotation}deg)`;
-      }
-
-      mover.style.width = `${newWidth}px`;
-      mover.style.height = `${newHeight}px`;
+      visualElements.forEach((el) => {
+        el.style.transform = `rotate(${currentRotation}deg) scale(${scale})`;
+        el.style.transition = "transform 0.3s ease";
+      });
     });
 
     return button;
   }
 
-  function tryModifyMediaViewer() {
+  function addButtonToMediaViewerButtons() {
     const mediaViewerButtons = document.querySelector(".media-viewer-buttons");
 
     if (mediaViewerButtons && !document.querySelector(`#${ROTATE_BUTTON_ID}`)) {
-      const downloadButton =
-        mediaViewerButtons.querySelectorAll(".btn-icon")[2];
+      const buttons = mediaViewerButtons.querySelectorAll(".btn-icon");
 
-      downloadButton.after(createButton());
+      if (buttons.length >= 3) {
+        buttons[2].after(createButton());
+      } else if (buttons.length > 0) {
+        buttons[buttons.length - 1].after(createButton());
+      }
     }
 
-    const mediaViewerAspecter = document.querySelector(
-      ".media-viewer-aspecter img",
-    );
+    const aspecter = document.querySelector(".media-viewer-aspecter");
 
-    if (mediaViewerAspecter) {
-      mediaViewerAspecter.style.transition = "transform var(--open-duration)";
-    }
-
-    const mediaViewerMover = document.querySelector(".media-viewer-mover");
-
-    if (mediaViewerMover) {
-      mediaViewerMover.style.overflow = "visible";
-    }
-
-    const video = document.querySelector(".ckin__video");
-
-    if (video) {
-      video.style.transition = "transform var(--open-duration)";
-    }
-
-    const videoThumbnail = document.querySelector(
-      ".media-viewer-aspecter .canvas-thumbnail",
-    );
-
-    if (videoThumbnail) {
-      videoThumbnail.style.transition = "transform var(--open-duration)";
+    if (aspecter && aspecter.style.overflow !== "visible") {
+      aspecter.style.setProperty("overflow", "visible", "important");
     }
   }
 
+  GM_addStyle(`
+    .page-chats {
+      display: flex;
+      max-width: none !important;
+    }
+  `);
+
   const observer = new MutationObserver(() => {
-    tryModifyMediaViewer();
+    addButtonToMediaViewerButtons();
   });
 
   observer.observe(document.body, { childList: true, subtree: true });
 
-  tryModifyMediaViewer();
+  addButtonToMediaViewerButtons();
 })();
