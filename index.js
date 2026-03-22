@@ -20,33 +20,33 @@
             const aspecter = document.querySelector(".media-viewer-aspecter");
             if (!aspecter) return;
 
-            // Разрешаем отображать всё, что выходит за рамки оригинального контейнера
+           
             aspecter.style.setProperty("overflow", "visible", "important");
             const mover = document.querySelector(".media-viewer-mover");
             if (mover) mover.style.setProperty("overflow", "visible", "important");
 
-            // Ищем все визуальные слои (фото, видео, canvas превью)
+           
             const visualElements = aspecter.querySelectorAll("img, video, canvas");
             if (visualElements.length === 0) return;
 
-            // Обновляем угол
+        
             let currentRotation = parseInt(aspecter.dataset.rotation) || 0;
             currentRotation += 90;
             aspecter.dataset.rotation = currentRotation;
 
             let scale = 1;
 
-            // Вычисляем масштаб только для 90 и 270 градусов
+           
             if (currentRotation % 180 !== 0) {
-                // Исходные размеры медиафайла до поворота (offsetWidth игнорирует css scale, что нам и нужно)
+                
                 let baseW = aspecter.offsetWidth;
                 let baseH = aspecter.offsetHeight;
 
-                // При повороте на 90/270 градусов ширина становится высотой, а высота — шириной
+                
                 let rotatedW = baseH;
                 let rotatedH = baseW;
 
-                // Доступное пространство экрана (берем 73% высоты и 90% ширины, чтобы оставить место под кнопки Telegram)
+             
                 let maxW = window.innerWidth * 0.90;
                 let maxH = window.innerHeight * 0.73;
 
@@ -56,7 +56,7 @@
                 }
             }
 
-            // Применяем вращение и вычисленный масштаб ко всем слоям (основное медиа + фон)
+            
             visualElements.forEach(el => {
                 el.style.transform = `rotate(${currentRotation}deg) scale(${scale})`;
                 el.style.transition = "transform 0.3s ease";
