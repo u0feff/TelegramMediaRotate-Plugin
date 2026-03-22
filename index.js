@@ -1,135 +1,100 @@
-(function () {
-  "use strict";
+(function() {
+    'use strict';
 
-  function createButton() {
-    const button = document.createElement("button");
+    function createButton() {
+        const button = document.createElement("button");
+        button.classList.add("btn-icon");
+        button.id = "rotate-button";
+        button.title = "Rotate Media";
+        button.innerHTML = `
+            <span class="tgico button-icon" style="width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="11.98 0.62 190.05 213.4" style="width: 20px; height: 20px;">
+                   <path fill="currentColor" d="M202 95c0 47-33 85-77 94v25l-69-40 69-40v24a65 65 0 1 0-77-35l-27 13a95 95 0 1 1 181-40z"/>
+                </svg>
+            </span>
+        `;
 
-    button.classList.add("btn-icon");
+        button.addEventListener("click", (event) => {
+            event.stopPropagation();
 
-    button.id = "rotate-button";
-    button.innerHTML = `
-        <span
-            class="tgico button-icon" 
-            style="
-                width: 24px;
-                height: 24px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            "
-        >
-            <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="11.98 0.62 190.05 213.4" style="width: 20px; height: 20px;">
-               <path fill="currentColor" d="M202 95c0 47-33 85-77 94v25l-69-40 69-40v24a65 65 0 1 0-77-35l-27 13a95 95 0 1 1 181-40z"/>
-            </svg>
-        </span>
-    `;
+            const aspecter = document.querySelector(".media-viewer-aspecter");
+            if (!aspecter) return;
 
-    button.addEventListener("click", (event) => {
-      event.stopPropagation();
+            // Разрешаем отображать всё, что выходит за рамки оригинального контейнера
+            aspecter.style.setProperty("overflow", "visible", "important");
+            const mover = document.querySelector(".media-viewer-mover");
+            if (mover) mover.style.setProperty("overflow", "visible", "important");
 
-      const image = document.querySelector(".media-viewer-aspecter img");
-      const video = document.querySelector(".ckin__video");
+            // Ищем все визуальные слои (фото, видео, canvas превью)
+            const visualElements = aspecter.querySelectorAll("img, video, canvas");
+            if (visualElements.length === 0) return;
 
-      const mediaElement = image || video;
+            // Обновляем угол
+            let currentRotation = parseInt(aspecter.dataset.rotation) || 0;
+            currentRotation += 90;
+            aspecter.dataset.rotation = currentRotation;
 
-      if (!mediaElement) return;
+            let scale = 1;
 
-      const mover = document.querySelector(".media-viewer-mover");
+            // Вычисляем масштаб только для 90 и 270 градусов
+            if (currentRotation % 180 !== 0) {
+                // Исходные размеры медиафайла до поворота (offsetWidth игнорирует css scale, что нам и нужно)
+                let baseW = aspecter.offsetWidth;
+                let baseH = aspecter.offsetHeight;
 
-      const videoThumbnail = document.querySelector(
-        ".media-viewer-aspecter .canvas-thumbnail"
-      );
+                // При повороте на 90/270 градусов ширина становится высотой, а высота — шириной
+                let rotatedW = baseH;
+                let rotatedH = baseW;
 
-      let currentRotation = parseInt(mediaElement.dataset.rotation) || 0;
+                // Доступное пространство экрана (берем 73% высоты и 90% ширины, чтобы оставить место под кнопки Telegram)
+                let maxW = window.innerWidth * 0.90;
+                let maxH = window.innerHeight * 0.73;
 
-      currentRotation += 90;
+                // Если повернутое видео/фото больше, чем доступное место на экране — уменьшаем его
+                if (rotatedW > maxW || rotatedH > maxH) {
+                    scale = Math.min(maxW / rotatedW, maxH / rotatedH);
+                }
+            }
 
-      let originalWidth = mediaElement.dataset.originalWidth;
-      let originalHeight = mediaElement.dataset.originalHeight;
+            // Применяем вращение и вычисленный масштаб ко всем слоям (основное медиа + фон)
+            visualElements.forEach(el => {
+                el.style.transform = `rotate(${currentRotation}deg) scale(${scale})`;
+                el.style.transition = "transform 0.3s ease";
+            });
+        });
+        return button;
+    }
 
-      if (!originalWidth || !originalHeight) {
-        originalWidth = mover.style.width.replace("px", "");
-        originalHeight = mover.style.height.replace("px", "");
+    function addButtonToMediaViewerButtons() {
+        const mediaViewerButtons = document.querySelector(".media-viewer-buttons");
+        if (mediaViewerButtons && !document.querySelector("#rotate-button")) {
+            const buttons = mediaViewerButtons.querySelectorAll(".btn-icon");
+            if (buttons.length >= 3) {
+                buttons[2].after(createButton());
+            } else if (buttons.length > 0) {
+                buttons[buttons.length - 1].after(createButton());
+            }
+        }
 
-        mediaElement.dataset.originalWidth = originalWidth;
-        mediaElement.dataset.originalHeight = originalHeight;
+        const aspecter = document.querySelector(".media-viewer-aspecter");
+        if (aspecter && aspecter.style.overflow !== "visible") {
+            aspecter.style.setProperty("overflow", "visible", "important");
+        }
+    }
 
-        mediaElement.style.minWidth = originalWidth + "px";
-        mediaElement.style.minHeight = originalHeight + "px";
-      }
+    GM_addStyle(`
+        .page-chats {
+            display: flex;
+            max-width: none !important;
+        }
+    `);
 
-      let newWidth, newHeight;
-
-      switch (currentRotation % 360) {
-        case 90:
-        case 270:
-          newWidth = originalHeight;
-          newHeight = originalWidth;
-          break;
-        default:
-          newWidth = originalWidth;
-          newHeight = originalHeight;
-          break;
-      }
-
-      mediaElement.dataset.rotation = currentRotation;
-      mediaElement.style.transform = `rotate(${currentRotation}deg)`;
-
-      if (videoThumbnail) {
-        videoThumbnail.dataset.rotation = currentRotation;
-        videoThumbnail.style.transform = `rotate(${currentRotation}deg)`;
-      }
-
-      mover.style.width = `${newWidth}px`;
-      mover.style.height = `${newHeight}px`;
+    const observer = new MutationObserver(() => {
+        addButtonToMediaViewerButtons();
     });
 
-    return button;
-  }
+    observer.observe(document.body, { childList: true, subtree: true });
 
-  function addButtonToMediaViewerButtons() {
-    const mediaViewerButtons = document.querySelector(".media-viewer-buttons");
-
-    if (mediaViewerButtons && !document.querySelector("#rotate-button")) {
-      const downloadButton = mediaViewerButtons.querySelectorAll(".btn-icon")[2];
-
-      downloadButton.after(createButton());
-    }
-
-    const mediaViewerAspecter = document.querySelector(
-      ".media-viewer-aspecter img"
-    );
-
-    if (mediaViewerAspecter) {
-      mediaViewerAspecter.style.transition = "transform var(--open-duration)";
-    }
-
-    const mediaViewerMover = document.querySelector(".media-viewer-mover");
-
-    if (mediaViewerMover) {
-      mediaViewerMover.style.overflow = "visible";
-    }
-
-    const video = document.querySelector(".ckin__video");
-
-    if (video) {
-      video.style.transition = "transform var(--open-duration)";
-    }
-
-    const videoThumbnail = document.querySelector(
-      ".media-viewer-aspecter .canvas-thumbnail"
-    );
-
-    if (videoThumbnail) {
-      videoThumbnail.style.transition = "transform var(--open-duration)";
-    }
-  }
-
-  const observer = new MutationObserver(() => {
     addButtonToMediaViewerButtons();
-  });
 
-  observer.observe(document.body, { childList: true, subtree: true });
-
-  addButtonToMediaViewerButtons();
 })();
